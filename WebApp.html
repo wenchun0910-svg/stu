@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f0f2f5; }
+        .tab-button { transition: all 0.3s ease; border-bottom: 4px solid transparent; }
+        .tab-button.active { border-bottom-color: #3b82f6; color: #1d4ed8; }
+        .card { background-color: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 2rem; }
+        .btn { transition: all 0.2s ease; border-radius: 8px; padding: 0.6rem 1.2rem; font-weight: 500; }
+        .btn-primary { background-color: #3b82f6; color: white; }
+        .btn-primary:hover { background-color: #2563eb; }
+        .btn-primary:disabled { background-color: #9ca3af; cursor: not-allowed; }
+        .btn-secondary { background-color: #6b7280; color: white; }
+        .btn-secondary:hover { background-color: #4b5563; }
+        .btn-danger { background-color: #ef4444; color: white; }
+        .btn-danger:hover { background-color: #dc2626; }
+        .input-field { border: 1px solid #d1d5db; border-radius: 8px; padding: 0.5rem 0.8rem; width: 100%; }
+        .input-field:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4); }
+        .loader { border: 5px solid #f3f3f3; border-top: 5px solid #3b82f6; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background-color: white; padding: 2rem; border-radius: 12px; max-width: 90%; width: 400px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+    </style>
+</head>
+<body>
+    <!-- Password Modal -->
+    <div id="password-modal" class="modal-backdrop">
+        <div class="modal-content text-center">
+            <!-- Setup View -->
+            <div id="password-setup-view">
+                <h3 class="text-xl font-bold mb-2">首次使用設定</h3>
+                <p class="text-gray-600 mb-6">請為本系統設定一組管理密碼。</p>
+                <div class="space-y-4">
+                    <input type="password" id="new-password" class="input-field text-center" placeholder="輸入新密碼 (至少4位)">
+                    <input type="password" id="confirm-password" class="input-field text-center" placeholder="再次確認密碼">
+                </div>
+                <button id="set-password-btn" class="btn btn-primary w-full mt-6">設定密碼</button>
+            </div>
+            <!-- Login View -->
+            <div id="password-login-view" class="hidden">
+                <h3 class="text-xl font-bold mb-2">系統鎖定</h3>
+                <p class="text-gray-600 mb-6">請輸入管理密碼以繼續。</p>
+                <input type="password" id="login-password" class="input-field text-center" placeholder="輸入管理密碼">
+                <button id="login-btn" class="btn btn-primary w-full mt-6">登入</button>
+            </div>
+            <p id="password-error" class="text-red-500 text-sm mt-4 h-5"></p>
+        </div>
+    </div>
+
+
+    <div id="loading-overlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm flex justify-center items-center z-50 hidden">
+        <div class="text-center">
+            <div class="loader mx-auto"></div>
+            <p class="mt-4 text-gray-600 font-medium text-lg">系統載入中，請稍候...</p>
+        </div>
+    </div>
+
+    <div id="app" class="container mx-auto p-4 md:p-8 max-w-5xl hidden">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800">🚀 學生點數管理系統 (GAS版)</h1>
+            <p class="text-gray-500 mt-2">一個即時、互動的班級管理工具</p>
+        </header>
+
+        <div class="mb-6 border-b border-gray-200">
+            <nav class="flex -mb-px space-x-6">
+                <button onclick="switchTab('points')" class="tab-button active py-4 px-1 text-lg font-semibold text-gray-700" id="tab-points">每週積點</button>
+                <button onclick="switchTab('roster')" class="tab-button py-4 px-1 text-lg font-semibold text-gray-600 hover:text-gray-800" id="tab-roster">學生管理</button>
+                <button onclick="switchTab('redeem')" class="tab-button py-4 px-1 text-lg font-semibold text-gray-600 hover:text-gray-800" id="tab-redeem">點數兌換</button>
+            </nav>
+        </div>
+
+        <main>
+            <!-- Points Tab -->
+            <div id="content-points" class="card">
+                <h2 class="text-2xl font-bold text-gray-700 mb-6">每週點數紀錄</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">目前總點數</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">本週加/減點數</th>
+                            </tr>
+                        </thead>
+                        <tbody id="points-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+                <div class="mt-6 text-right">
+                    <button id="batch-update-btn" class="btn btn-primary">儲存所有點數變更</button>
+                </div>
+            </div>
+
+            <!-- Roster Tab -->
+            <div id="content-roster" class="card hidden">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-700 mb-4">批次匯入名單</h2>
+                        <p class="text-sm text-gray-500 mb-4">請將學生姓名貼入下方，每行一個姓名。<br>新匯入的學生，預設密碼為 <code class="bg-gray-200 px-1 rounded">0000</code>。</p>
+                        <textarea id="batch-import-textarea" class="input-field w-full h-40" placeholder="小明&#10;小華&#10;小美"></textarea>
+                        <button id="batch-import-btn" class="btn btn-primary mt-4 w-full">批次匯入</button>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-700 mb-4">新增單一學生</h2>
+                        <p class="text-sm text-gray-500 mb-4">新學生的預設密碼為 <code class="bg-gray-200 px-1 rounded">0000</code>。</p>
+                        <input type="text" id="new-student-name" class="input-field w-full" placeholder="輸入學生姓名">
+                        <button id="add-student-btn" class="btn btn-primary mt-4 w-full">新增學生</button>
+                    </div>
+                </div>
+                <hr class="my-8">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-700 mb-4">目前學生名單與密碼管理</h2>
+                    <ul id="roster-list" class="space-y-3"></ul>
+                </div>
+            </div>
+
+            <!-- Redeem Tab -->
+            <div id="content-redeem" class="card hidden">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-700 mb-4">兌換點數</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">選擇學生</label>
+                                <select id="redeem-student-select" class="input-field mt-1"></select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">兌換點數</label>
+                                <input type="number" id="redeem-points-input" class="input-field mt-1" placeholder="例如: 50">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">備註 (可選填)</label>
+                                <input type="text" id="redeem-remarks-input" class="input-field mt-1" placeholder="例如: 兌換鉛筆一支">
+                            </div>
+                            <button id="redeem-btn" class="btn btn-primary w-full !mt-6">確認兌換</button>
+                        </div>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-700 mb-4">兌換歷史紀錄</h2>
+                        <div class="mb-4">
+                            <select id="log-search-select" class="input-field w-full">
+                            </select>
+                        </div>
+                        <div class="overflow-auto h-64 border rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">時間</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">姓名</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">點數</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">備註</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="redeem-log-body" class="bg-white divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for messages -->
+    <div id="message-modal" class="modal-backdrop hidden">
+        <div class="modal-content text-center">
+            <h3 id="modal-title" class="text-xl font-bold mb-4">訊息</h3>
+            <p id="modal-message" class="text-gray-600 mb-6"></p>
+            <button id="modal-close-btn" class="btn btn-primary">關閉</button>
+        </div>
+    </div>
+
+    <script>
+        // --- UI Elements ---
+        const passwordModal = document.getElementById('password-modal');
+        const passwordError = document.getElementById('password-error');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const mainApp = document.getElementById('app');
+        const pointsTableBody = document.getElementById('points-table-body');
+        const rosterList = document.getElementById('roster-list');
+        const redeemStudentSelect = document.getElementById('redeem-student-select');
+        const redeemLogBody = document.getElementById('redeem-log-body');
+        let allButtons = []; // Will be populated after auth
+
+        // --- State Management ---
+        let studentsCache = [];
+        let redeemLogCache = [];
+
+        // --- UI Control ---
+        const showLoading = () => loadingOverlay.classList.remove('hidden');
+        const hideLoading = () => loadingOverlay.classList.add('hidden');
+        const disableButtons = () => allButtons.forEach(b => b.disabled = true);
+        const enableButtons = () => allButtons.forEach(b => b.disabled = false);
+
+        // --- Tab Switching ---
+        window.switchTab = (tabName) => {
+            ['points', 'roster', 'redeem'].forEach(name => {
+                document.getElementById(`content-${name}`).classList.add('hidden');
+                document.getElementById(`tab-${name}`).classList.remove('active');
+            });
+            document.getElementById(`content-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        };
+
+        // --- Message Modal Logic ---
+        const messageModal = document.getElementById('message-modal');
+        const showMessage = (title, message) => {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').textContent = message;
+            messageModal.classList.remove('hidden');
+        };
+        document.getElementById('modal-close-btn').addEventListener('click', () => messageModal.classList.add('hidden'));
+        
+        // --- Password Logic ---
+        const handlePasswordSetup = () => {
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            passwordError.textContent = '';
+
+            if (newPassword.length < 4) { passwordError.textContent = '密碼長度至少需要4個字元。'; return; }
+            if (newPassword !== confirmPassword) { passwordError.textContent = '兩次輸入的密碼不相符。'; return; }
+            
+            document.getElementById('set-password-btn').disabled = true;
+            google.script.run
+                .withSuccessHandler(() => {
+                    passwordModal.classList.add('hidden');
+                    initializeApp();
+                })
+                .withFailureHandler(err => {
+                    passwordError.textContent = err.message;
+                    document.getElementById('set-password-btn').disabled = false;
+                })
+                .setSystemPassword(newPassword);
+        };
+
+        const handlePasswordLogin = () => {
+            const password = document.getElementById('login-password').value;
+            passwordError.textContent = '';
+            if (!password) { passwordError.textContent = '請輸入密碼。'; return; }
+
+            document.getElementById('login-btn').disabled = true;
+            google.script.run
+                .withSuccessHandler(isValid => {
+                    if (isValid) {
+                        passwordModal.classList.add('hidden');
+                        initializeApp();
+                    } else {
+                        passwordError.textContent = '密碼錯誤，請再試一次。';
+                        document.getElementById('login-btn').disabled = false;
+                    }
+                })
+                .withFailureHandler(err => {
+                    passwordError.textContent = '登入時發生錯誤: ' + err.message;
+                    document.getElementById('login-btn').disabled = false;
+                })
+                .verifySystemPassword(password);
+        };
+
+        // --- Render Functions ---
+        const renderAll = () => {
+            studentsCache.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'));
+            redeemLogCache.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            renderStudents();
+            renderRedeemLog();
+            document.getElementById('log-search-select').value = '';
+        }
+
+        const renderStudents = () => {
+            pointsTableBody.innerHTML = ''; rosterList.innerHTML = '';
+            redeemStudentSelect.innerHTML = '<option value="">請選擇學生</option>';
+            const logSearchSelect = document.getElementById('log-search-select');
+            logSearchSelect.innerHTML = '<option value="">篩選全部學生紀錄</option>';
+
+            if (studentsCache.length === 0) {
+                pointsTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-10 text-gray-500">尚無學生資料，請至「學生管理」分頁新增。</td></tr>`;
+                rosterList.innerHTML = `<li class="text-center py-4 text-gray-500">尚無學生資料</li>`; return;
+            }
+            studentsCache.forEach(student => {
+                pointsTableBody.innerHTML += `<tr><td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${student.name}</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-bold text-lg">${student.totalPoints}</td><td class="px-6 py-4 whitespace-nowrap"><input type="number" class="input-field w-24" data-id="${student.id}" placeholder="+/-"></td></tr>`;
+                rosterList.innerHTML += `<li class="grid grid-cols-1 md:grid-cols-3 gap-2 items-center bg-gray-50 p-3 rounded-lg"><span class="text-gray-800 font-medium">${student.name}</span><div class="flex items-center gap-2"><input type="text" id="pw-${student.id}" class="input-field text-sm w-full" value="${student.password}"><button class="btn btn-secondary text-xs" onclick="handleUpdatePassword('${student.id}', '${student.name}')">改密碼</button></div><div class="text-right"><button class="btn btn-danger text-xs" onclick="handleDeleteStudent('${student.id}', '${student.name}')">刪除學生</button></div></li>`;
+                redeemStudentSelect.innerHTML += `<option value="${student.id}">${student.name} (${student.totalPoints}點)</option>`;
+                logSearchSelect.innerHTML += `<option value="${student.name}">${student.name}</option>`;
+            });
+        };
+
+        const renderRedeemLog = (logsToRender = redeemLogCache) => {
+            redeemLogBody.innerHTML = '';
+            if (logsToRender.length === 0) {
+                redeemLogBody.innerHTML = `<tr><td colspan="4" class="text-center py-10 text-gray-500">尚無符合的兌換紀錄</td></tr>`; return;
+            }
+            logsToRender.forEach(log => {
+                redeemLogBody.innerHTML += `<tr><td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">${new Date(log.timestamp).toLocaleDateString()}</td><td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${log.studentName}</td><td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-red-500">${log.pointsRedeemed}</td><td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${log.remarks || ''}</td></tr>`;
+            });
+        };
+        
+        function handleFailure(error) { showMessage('錯誤', error.message); enableButtons(); }
+        
+        function handleBatchUpdatePoints() {
+            const inputs = document.querySelectorAll('#points-table-body input[type="number"]');
+            const updates = [];
+            inputs.forEach(input => {
+                const value = parseInt(input.value, 10);
+                if (!isNaN(value) && value !== 0) { updates.push({ id: input.dataset.id, points: value }); }
+            });
+            if (updates.length === 0) { showMessage('提示', '沒有偵測到任何點數變更。'); return; }
+            disableButtons();
+            google.script.run.withSuccessHandler(updatedStudents => {
+                updatedStudents.forEach(updated => {
+                    const index = studentsCache.findIndex(s => s.id === updated.id);
+                    if (index !== -1) studentsCache[index] = updated;
+                });
+                renderAll(); showMessage('成功', `已成功更新 ${updatedStudents.length} 位學生的點數。`); enableButtons();
+            }).withFailureHandler(handleFailure).batchUpdatePoints(updates);
+        }
+
+        // --- App Initialization & Event Binding ---
+        function initializeApp() {
+            mainApp.classList.add('hidden');
+            showLoading();
+            google.script.run
+                .withSuccessHandler(data => {
+                    studentsCache = data.students; redeemLogCache = data.logs;
+                    allButtons = document.querySelectorAll('#app button'); // Populate buttons after main app is visible in DOM
+                    
+                    document.getElementById('batch-update-btn').addEventListener('click', handleBatchUpdatePoints);
+                    
+                    <!-- ADD THIS NEW LINE -->
+                    document.getElementById('batch-import-points-btn').addEventListener('click', handleBatchImportPoints);
+                    
+                    document.getElementById('add-student-btn').addEventListener('click', () => {
+                        const nameInput = document.getElementById('new-student-name');
+                        const name = nameInput.value.trim();
+                        if (!name) { showMessage('提示', '請輸入學生姓名。'); return; }
+                        disableButtons();
+                        google.script.run.withSuccessHandler(newStudent => {
+                            studentsCache.push(newStudent); renderAll(); nameInput.value = '';
+                            showMessage('成功', `已新增學生：${name} (預設密碼 0000)`); enableButtons();
+                        }).withFailureHandler(handleFailure).addStudent(name);
+                    });
+                    document.getElementById('batch-import-btn').addEventListener('click', () => {
+                        const textarea = document.getElementById('batch-import-textarea');
+                        const names = textarea.value.split('\n').map(n => n.trim()).filter(Boolean);
+                        if (names.length === 0) { showMessage('提示', '請在文字框中輸入學生姓名。'); return; }
+                        disableButtons();
+                        google.script.run.withSuccessHandler(newStudents => {
+                            studentsCache.push(...newStudents); renderAll(); textarea.value = '';
+                            showMessage('成功', `成功匯入 ${names.length} 位學生！(預設密碼 0000)`); enableButtons();
+                        }).withFailureHandler(handleFailure).batchImportStudents(names);
+                    });
+                    document.getElementById('redeem-btn').addEventListener('click', () => {
+                        const studentId = redeemStudentSelect.value;
+                        const pointsInput = document.getElementById('redeem-points-input');
+                        const remarksInput = document.getElementById('redeem-remarks-input');
+                        const pointsToRedeem = parseInt(pointsInput.value, 10);
+                        const remarks = remarksInput.value.trim();
+                        if (!studentId) { showMessage('提示', '請選擇一位學生。'); return; }
+                        if (isNaN(pointsToRedeem) || pointsToRedeem <= 0) { showMessage('提示', '請輸入有效的兌換點數。'); return; }
+                        disableButtons();
+                        google.script.run.withSuccessHandler(result => {
+                            const { updatedStudent, newLog } = result;
+                            const index = studentsCache.findIndex(s => s.id === updatedStudent.id);
+                            if (index !== -1) studentsCache[index] = updatedStudent;
+                            redeemLogCache.push(newLog); renderAll();
+                            pointsInput.value = ''; remarksInput.value = ''; redeemStudentSelect.value = '';
+                            showMessage('成功', `已為 ${updatedStudent.name} 兌換 ${newLog.pointsRedeemed} 點。`); enableButtons();
+                        }).withFailureHandler(handleFailure).redeemPoints(studentId, pointsToRedeem, remarks);
+                    });
+                    
+                    const logSearchSelect = document.getElementById('log-search-select');
+                    logSearchSelect.addEventListener('change', () => {
+                        const selectedName = logSearchSelect.value;
+                        if (selectedName) {
+                            const filteredLogs = redeemLogCache.filter(log => log.studentName === selectedName);
+                            renderRedeemLog(filteredLogs);
+                        } else {
+                            renderRedeemLog(redeemLogCache);
+                        }
+                    });
+                    
+                    renderAll();
+                    hideLoading(); mainApp.classList.remove('hidden');
+                })
+                .withFailureHandler(error => {
+                    document.getElementById('loading-overlay').innerHTML = `<p class="text-red-500 font-bold p-4 text-center">系統初始化失敗：${error.message}。<br>請嘗試在 Google Sheet 中手動執行 'setupSheets' 功能。</p>`;
+                })
+                .getInitialData();
+        }
+
+        <!-- ADD THIS NEW FUNCTION -->
+        function handleBatchImportPoints() {
+            const textarea = document.getElementById('batch-points-textarea');
+            const text = textarea.value.trim();
+            if (!text) {
+                showMessage('提示', '請在文字框中貼上資料。');
+                return;
+            }
+
+            const updates = [];
+            const lines = text.split('\n');
+            const errors = [];
+
+            lines.forEach((line, index) => {
+                const parts = line.split(',');
+                if (parts.length === 2) {
+                    const name = parts[0].trim();
+                    const points = parseInt(parts[1].trim(), 10);
+                    if (name && !isNaN(points)) {
+                        updates.push({ name, points });
+                    } else {
+                        errors.push(`第 ${index + 1} 行格式錯誤: ${line}`);
+                    }
+                } else if (line.trim()) { // Ignore empty lines but report malformed lines
+                    errors.push(`第 ${index + 1} 行格式錯誤 (缺少逗號): ${line}`);
+                }
+            });
+
+            if (updates.length === 0) {
+                let errorMsg = '沒有解析到任何有效的資料。';
+                if(errors.length > 0) errorMsg += '\n\n錯誤詳情:\n' + errors.join('\n');
+                showMessage('錯誤', errorMsg);
+                return;
+            }
+
+            disableButtons();
+            google.script.run
+                .withSuccessHandler(result => {
+                    // Update cache
+                    result.updatedStudents.forEach(updated => {
+                        const index = studentsCache.findIndex(s => s.id === updated.id);
+                        if (index !== -1) studentsCache[index] = updated;
+                    });
+                    renderAll(); // Re-render everything with new totals
+                    textarea.value = ''; // Clear textarea
+
+                    // Build summary message
+                    let summary = `成功更新 ${result.updatedStudents.length} 位學生的點數。`;
+                    if (result.notFound.length > 0) {
+                        summary += `\n\n找不到 ${result.notFound.length} 位學生：\n` + result.notFound.join(', ');
+                    }
+                    if (errors.length > 0) {
+                        summary += `\n\n${errors.length} 行資料格式錯誤已被忽略。`;
+                    }
+                    showMessage('批次匯入完成', summary);
+                    enableButtons();
+                })
+                .withFailureHandler(handleFailure)
+                .bulkAddPointsByName(updates);
+        }
+
+        window.handleDeleteStudent = (studentId, studentName) => {
+            if (!confirm(`確定要刪除學生 "${studentName}" 嗎？此操作無法復原。`)) return;
+            disableButtons();
+            google.script.run.withSuccessHandler(deletedId => {
+                studentsCache = studentsCache.filter(s => s.id !== deletedId); renderAll();
+                showMessage('成功', `已刪除學生 ${studentName}。`); enableButtons();
+            }).withFailureHandler(handleFailure).deleteStudent(studentId);
+        };
+        
+        window.handleUpdatePassword = (studentId, studentName) => {
+            const passwordInput = document.getElementById(`pw-${studentId}`);
+            const newPassword = passwordInput.value.trim();
+            if (newPassword.length < 4) { showMessage('提示', '密碼長度至少需要4個字元。'); return; }
+            disableButtons();
+            google.script.run.withSuccessHandler(result => {
+                const index = studentsCache.findIndex(s => s.id === result.studentId);
+                if(index !== -1) studentsCache[index].password = result.newPassword;
+                showMessage('成功', `已更新 ${studentName} 的密碼。`); enableButtons();
+            }).withFailureHandler(handleFailure).updateStudentPassword(studentId, newPassword);
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('set-password-btn').addEventListener('click', handlePasswordSetup);
+            document.getElementById('login-btn').addEventListener('click', handlePasswordLogin);
+            document.getElementById('login-password').addEventListener('keyup', (e) => e.key === 'Enter' && handlePasswordLogin());
+            document.getElementById('confirm-password').addEventListener('keyup', (e) => e.key === 'Enter' && handlePasswordSetup());
+
+            google.script.run
+                .withSuccessHandler(isSet => {
+                    if (isSet) {
+                        document.getElementById('password-setup-view').classList.add('hidden');
+                        document.getElementById('password-login-view').classList.remove('hidden');
+                    } else {
+                        document.getElementById('password-setup-view').classList.remove('hidden');
+                        document.getElementById('password-login-view').classList.add('hidden');
+                    }
+                }).withFailureHandler(err => {
+                    passwordError.textContent = '無法檢查密碼狀態: ' + err.message;
+                }).isPasswordSet();
+        });
+    </script>
+</body>
+</html>
+
+
