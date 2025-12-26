@@ -1,199 +1,194 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-  <base target="_top">
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>長安小鐵人計時表</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
-    body { font-family: 'Noto Sans TC', sans-serif; background-color: #f3f4f6; }
-    .button-student { transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out; }
-    .button-student:active { transform: scale(0.95); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-    .watermark { position: fixed; right: 1rem; bottom: 1rem; opacity: 0.5; font-size: 0.875rem; color: #6b7280; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學生成績查詢系統</title>
+    <style>
+        body { font-family: "Microsoft JhengHei", Arial, sans-serif; background-color: #f4f7f6; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #333; }
+        
+        /* 表單樣式 */
+        .login-box, .query-box { text-align: center; margin-bottom: 20px; }
+        input, select { padding: 10px; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; width: 200px; }
+        button { padding: 10px 20px; font-size: 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        
+        /* 表格樣式 */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 15px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        th { background-color: #f8f9fa; font-weight: bold; color: #555; }
+        .highlight { background-color: #e3f2fd; font-weight: bold; }
+        
+        /* 統計區塊 */
+        .stats-section { margin-top: 40px; border-top: 2px dashed #ccc; padding-top: 20px; }
+        .stat-card { display: inline-block; width: 48%; vertical-align: top; margin-bottom: 20px; }
+        
+        /* 載入中動畫 */
+        #loading { display: none; text-align: center; color: #666; margin-top: 10px; }
+        .error { color: red; text-align: center; margin-top: 10px; }
+        
+        @media (max-width: 600px) {
+            .stat-card { width: 100%; }
+            table { display: block; overflow-x: auto; }
+        }
+    </style>
 </head>
-<body class="p-4 md:p-8">
-  <div class="flex flex-col items-center justify-center min-h-screen">
-    <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl w-full max-w-4xl mx-auto">
-      <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">長安小鐵人計時表 (Netlify版)</h1>
-      
-      <div id="messageBox" class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded-xl relative hidden mb-4">
-        <span id="messageText" class="block sm:inline"></span>
-      </div>
+<body>
 
-      <!-- 人數與計時器 -->
-      <div class="flex flex-col md:flex-row items-center justify-between mb-8 space-y-4 md:space-y-0 md:space-x-8">
-        <div class="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4">
-          <label for="studentCount" class="text-gray-700 text-lg">學生人數：</label>
-          <input type="number" id="studentCount" value="30" class="w-24 px-3 py-2 border rounded-lg text-center text-lg">
-          <button onclick="generateButtons()" class="px-4 py-2 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600">產生座號</button>
-        </div>
-        <div class="text-4xl md:text-5xl font-mono text-gray-900">
-          <span id="minutes">00</span>:<span id="seconds">00</span>
-        </div>
-      </div>
-      
-      <!-- 開始按鈕 -->
-      <div class="flex flex-col items-center mb-8">
-        <button id="startStopBtn" onclick="toggleTimer()" class="w-full sm:w-auto px-8 py-3 bg-green-500 text-white font-bold text-lg rounded-full shadow-lg hover:bg-green-600">計時開始</button>
-      </div>
+<div class="container">
+    <h1>學生成績查詢</h1>
 
-      <!-- 座號區 -->
-      <div id="studentButtons" class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4 mb-8"></div>
-      
-      <!-- 即時成績與查詢 -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div class="bg-gray-50 p-6 rounded-xl shadow-inner overflow-x-auto">
-          <h2 class="font-bold text-gray-700 mb-4">即時計時成績</h2>
-          <table id="resultsTable" class="min-w-full"><tbody class="bg-white"></tbody></table>
-        </div>
-        <div class="bg-gray-50 p-6 rounded-xl shadow-inner">
-          <h2 class="font-bold text-gray-700 mb-4">查詢歷史成績</h2>
-          <div class="flex space-x-2 mb-4">
-            <input type="number" id="queryStudentNumber" class="w-20 px-3 py-2 border rounded-lg text-center">
-            <button onclick="queryStudentData()" class="px-4 py-2 bg-indigo-500 text-white font-bold rounded-lg">查詢</button>
-          </div>
-          <ul id="queryList" class="space-y-2 text-gray-700"><li class="text-gray-500">輸入座號查詢</li></ul>
-        </div>
-      </div>
-
-      <!-- 功能按鈕區 -->
-      <div class="flex flex-wrap justify-end gap-4">
-        <button onclick="openSpreadsheet()" class="px-6 py-3 bg-blue-500 text-white font-bold rounded-full shadow-lg">開啟試算表</button>
-        <button onclick="uploadResults()" class="px-6 py-3 bg-purple-500 text-white font-bold rounded-full shadow-lg">上傳成績</button>
-        <button onclick="resetAll()" class="px-6 py-3 bg-red-500 text-white font-bold rounded-full shadow-lg">重置</button>
-      </div>
-      
-      <div class="watermark">文君製作</div>
+    <div id="login-section" class="login-box">
+        <p>請輸入身分證字號末五碼</p>
+        <input type="text" id="id-last-5" placeholder="例如：12345" maxlength="5">
+        <button onclick="login()">登入系統</button>
+        <div id="login-msg" class="error"></div>
     </div>
-  </div>
 
-  <script>
-    // --- 重要：請在此貼上你部署後的 Google Script 網頁應用程式網址 ---
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwC7TJepuFg_h5KU0Lchr2E2wW6Gi1hrMDGO2-YaT683lMq-bMIXT9WntePPexAwBvo/exec";
+    <div id="query-section" class="query-box" style="display:none;">
+        <p>歡迎登入，請選擇評量：</p>
+        <select id="sheet-selector">
+            <option value="">載入中...</option>
+        </select>
+        <button onclick="fetchData()">查詢成績</button>
+    </div>
 
-    let timerId, startTime, isRunning = false, results = {};
+    <div id="loading">資料讀取中，請稍候...</div>
+    <div id="error-display" class="error"></div>
 
-    async function callGAS(payload) {
-      if (WEB_APP_URL === "你的_GOOGLE_SCRIPT_WEB_APP_URL") {
-        showMessage("請先在程式碼中設定 WEB_APP_URL！");
-        return null;
-      }
-      try {
-        const response = await fetch(WEB_APP_URL, {
-          method: 'POST',
-          body: JSON.stringify(payload)
+    <div id="result-area" style="display:none;">
+        <h2>個人成績單</h2>
+        <div id="student-info-table"></div>
+
+        <div class="stats-section">
+            <h2>班級統計數據 (定期評量)</h2>
+            <p style="text-align:center; font-size:0.9em; color:#666;">高標定義：前 50% 學生之平均分數</p>
+            <div id="stats-container"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 【重要】請將下方網址換成您部署後的 Google Apps Script 網址
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxdyuDOghAqUDBIRjyrlePYG7hG6rJpjd5jsdg1YdQo7Qn51gC-ByNItrR028xjlcK2GQ/exec'; 
+
+    let userLast5 = '';
+
+    function login() {
+        const input = document.getElementById('id-last-5').value.trim();
+        if (input.length !== 5) {
+            document.getElementById('login-msg').innerText = "請輸入正確的 5 碼數字";
+            return;
+        }
+        userLast5 = input;
+        
+        // 切換介面
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('query-section').style.display = 'block';
+        document.getElementById('loading').style.display = 'block';
+
+        // 取得工作表清單
+        fetch(`${GAS_URL}?action=getSheetNames`)
+            .then(res => res.json())
+            .then(names => {
+                const select = document.getElementById('sheet-selector');
+                select.innerHTML = '';
+                names.forEach(name => {
+                    const opt = document.createElement('option');
+                    opt.value = name;
+                    opt.innerText = name;
+                    select.appendChild(opt);
+                });
+                document.getElementById('loading').style.display = 'none';
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('loading').innerText = "連線錯誤，請重新整理";
+            });
+    }
+
+    function fetchData() {
+        const sheetName = document.getElementById('sheet-selector').value;
+        if (!sheetName) return;
+
+        document.getElementById('result-area').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('error-display').innerText = '';
+
+        fetch(`${GAS_URL}?action=getData&sheetName=${encodeURIComponent(sheetName)}&idLast5=${userLast5}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('loading').style.display = 'none';
+                
+                if (data.error) {
+                    document.getElementById('error-display').innerText = data.error;
+                    return;
+                }
+
+                renderStudentTable(data.student);
+                renderStats(data.stats);
+                document.getElementById('result-area').style.display = 'block';
+            })
+            .catch(err => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error-display').innerText = "查詢失敗，請檢查網路或稍後再試。";
+            });
+    }
+
+    function renderStudentTable(student) {
+        // 依據您提供的欄位順序建立表格
+        // 為了美觀，我們將 "身分證" 隱藏或只顯示部分，這裡假設全部欄位都顯示
+        let html = '<table><thead><tr>';
+        const keys = Object.keys(student);
+        
+        // 建立標題列
+        keys.forEach(key => {
+             // 不顯示身分證字號，保護隱私
+            if(key !== "身分證字號") {
+                html += `<th>${key}</th>`;
+            }
         });
-        const res = await response.json();
-        if (res.status === 'success') return res.data;
-        throw new Error(res.message);
-      } catch (e) {
-        showMessage("連線錯誤: " + e.message);
-        return null;
-      }
+        html += '</tr></thead><tbody><tr>';
+        
+        // 建立資料列
+        keys.forEach(key => {
+            if(key !== "身分證字號") {
+                html += `<td>${student[key]}</td>`;
+            }
+        });
+        html += '</tr></tbody></table>';
+        document.getElementById('student-info-table').innerHTML = html;
     }
 
-    function showMessage(msg) {
-      const box = document.getElementById('messageBox');
-      document.getElementById('messageText').innerText = msg;
-      box.classList.remove('hidden');
-      setTimeout(() => box.classList.add('hidden'), 5000);
+    function renderStats(stats) {
+        let html = '';
+        
+        for (const [subject, data] of Object.entries(stats)) {
+            html += `<div class="stat-card">`;
+            html += `<h3>${subject}</h3>`;
+            html += `<table>
+                        <tr><th>項目</th><th>分數</th></tr>
+                        <tr><td>全班平均</td><td class="highlight">${data.avg}</td></tr>
+                        <tr><td>高標 (前50%平均)</td><td class="highlight">${data.highStd}</td></tr>
+                     </table>`;
+            
+            html += `<table>
+                        <tr><th colspan="2">分數組距分佈 (共 ${data.count} 人)</th></tr>
+                        <tr><td>100 分</td><td>${data.distribution['100']} 人</td></tr>
+                        <tr><td>90 - 99 分</td><td>${data.distribution['90-99']} 人</td></tr>
+                        <tr><td>80 - 89 分</td><td>${data.distribution['80-89']} 人</td></tr>
+                        <tr><td>70 - 79 分</td><td>${data.distribution['70-79']} 人</td></tr>
+                        <tr><td>60 - 69 分</td><td>${data.distribution['60-69']} 人</td></tr>
+                        <tr><td>60 分以下</td><td>${data.distribution['below60']} 人</td></tr>
+                     </table>`;
+            html += `</div>`;
+        }
+        
+        document.getElementById('stats-container').innerHTML = html;
     }
+</script>
 
-    function updateTimerDisplay() {
-      if (isRunning) {
-        const diff = new Date().getTime() - startTime;
-        document.getElementById('minutes').innerText = String(Math.floor(diff / 60000)).padStart(2, '0');
-        document.getElementById('seconds').innerText = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
-      }
-    }
-
-    function toggleTimer() {
-      const btn = document.getElementById('startStopBtn');
-      if (!isRunning) {
-        startTime = new Date().getTime();
-        isRunning = true;
-        timerId = setInterval(updateTimerDisplay, 1000);
-        btn.innerText = '計時結束';
-        btn.classList.replace('bg-green-500', 'bg-red-500');
-        document.querySelectorAll('.button-student').forEach(b => b.disabled = false);
-      } else {
-        clearInterval(timerId);
-        isRunning = false;
-        btn.innerText = '計時開始';
-        btn.classList.replace('bg-red-500', 'bg-green-500');
-        document.querySelectorAll('.button-student').forEach(b => b.disabled = true);
-      }
-    }
-
-    function recordTime(num) {
-      if (!isRunning) return;
-      const time = ((new Date().getTime() - startTime) / 1000).toFixed(2);
-      results[num] = time;
-      updateTable();
-      const btn = document.getElementById(`btn-${num}`);
-      btn.classList.add('bg-gray-400', 'cursor-not-allowed');
-      btn.disabled = true;
-    }
-
-    function updateTable() {
-      const tbody = document.querySelector('#resultsTable tbody');
-      tbody.innerHTML = '';
-      const nums = Object.keys(results).sort((a,b) => a-b);
-      if (nums.length) {
-        let hRow = `<tr><th class="p-2 text-left text-xs font-bold text-gray-500">座號</th><th class="p-2 text-left text-xs font-bold text-gray-500">時間</th></tr>`;
-        tbody.innerHTML = hRow + nums.map(n => `<tr><td class="p-2 font-bold">${n}</td><td class="p-2">${results[n]}s</td></tr>`).join('');
-      }
-    }
-
-    function generateButtons() {
-      const count = document.getElementById('studentCount').value;
-      const container = document.getElementById('studentButtons');
-      container.innerHTML = Array.from({length: count}, (_, i) => i + 1).map(i => 
-        `<button id="btn-${i}" onclick="recordTime(${i})" disabled class="button-student flex items-center justify-center w-16 h-16 bg-blue-500 text-white font-bold rounded-full shadow-lg text-xl disabled:opacity-50">${i}</button>`
-      ).join('');
-      resetAll();
-    }
-
-    function resetAll() {
-      clearInterval(timerId);
-      isRunning = false;
-      results = {};
-      document.getElementById('minutes').innerText = '00';
-      document.getElementById('seconds').innerText = '00';
-      document.querySelector('#resultsTable tbody').innerHTML = '';
-      document.querySelectorAll('.button-student').forEach(b => {
-        b.classList.remove('bg-gray-400');
-        b.classList.add('bg-blue-500');
-        b.disabled = true;
-      });
-    }
-
-    async function uploadResults() {
-      const nums = Object.keys(results);
-      if (!nums.length) return showMessage("無資料上傳");
-      const data = nums.sort((a,b) => a-b).map(n => [n, results[n]]);
-      const res = await callGAS({ action: 'saveData', data: data });
-      if (res) { showMessage("上傳成功！"); resetAll(); }
-    }
-
-    async function queryStudentData() {
-      const num = document.getElementById('queryStudentNumber').value;
-      const res = await callGAS({ action: 'getStudentTimes', studentNumber: num });
-      const list = document.getElementById('queryList');
-      if (res) {
-        list.innerHTML = res.length ? res.map(t => `<li>時間: ${t}s</li>`).join('') : "<li>無歷史紀錄</li>";
-      }
-    }
-
-    async function openSpreadsheet() {
-      const url = await callGAS({ action: 'getSpreadsheetUrl' });
-      if (url) window.open(url, '_blank');
-    }
-
-    document.addEventListener('DOMContentLoaded', generateButtons);
-  </script>
 </body>
 </html>
