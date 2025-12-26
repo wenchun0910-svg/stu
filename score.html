@@ -31,6 +31,20 @@
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
+        /* Custom Scrollbar for table */
+        .scrollbar-hide::-webkit-scrollbar {
+            height: 8px;
+        }
+        .scrollbar-hide::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        .scrollbar-hide::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        .scrollbar-hide::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
     </style>
 </head>
 <body>
@@ -40,9 +54,8 @@
         const { useState, useEffect } = React;
 
         // --- 設定你的 Google Apps Script URL ---
-        // 如果要發布給學生，建議將下方空字串替換成你的 "Web App URL"
         // 例如: const DEFAULT_API_URL = "https://script.google.com/macros/s/XXXXX/exec";
-        const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbybeCY7iV5XKqr4D_-lTzfrixlfiEB-6qBUJHPS77S2XK9mFXiFpVA7kSOPZCUQxGN5Dg/exec"; 
+        const DEFAULT_API_URL = ""; 
 
         const App = () => {
             const [view, setView] = useState('login'); // login, dashboard
@@ -55,16 +68,12 @@
             const [studentData, setStudentData] = useState(null);
             const [statsData, setStatsData] = useState(null);
             
-            // 模擬模式 (當沒有 API URL 時展示範例資料)
+            // 模擬模式
             const [isDemo, setIsDemo] = useState(false);
 
-            // 初始化：如果有 API URL，嘗試抓取工作表列表
             useEffect(() => {
                 if (apiUrl && !isDemo) {
                     fetchSheets();
-                } else if (!apiUrl) {
-                    // 如果沒有預設 API URL，提示使用者或進入 Demo 模式
-                    // 這裡為了預覽效果，預設未填時不動作，等待使用者輸入
                 }
             }, [apiUrl]);
 
@@ -92,7 +101,6 @@
                 }
                 
                 if (!apiUrl && !isDemo) {
-                    // Demo mode handling for preview
                     setIsDemo(true);
                     mockLogin();
                     return;
@@ -102,8 +110,6 @@
                     mockLogin();
                     return;
                 }
-
-                // 真實登入
                 fetchData(selectedSheet);
             };
 
@@ -119,7 +125,6 @@
 
             const mockFetchData = () => {
                 setView('dashboard');
-                // 產生假資料
                 setStudentData({
                     seat: "05",
                     name: "王小明",
@@ -168,7 +173,7 @@
                 const newSheet = e.target.value;
                 setSelectedSheet(newSheet);
                 if (isDemo) {
-                    // Just refresh mock data
+                   // Refresh demo data if needed
                 } else {
                     fetchData(newSheet);
                 }
@@ -182,6 +187,20 @@
                 setError('');
             };
 
+            // Helper to render score cell
+            const ScoreCell = ({ val }) => (
+                <td className="px-3 py-4 text-center text-gray-700 font-medium whitespace-nowrap border-r border-gray-100 last:border-0">
+                    {val !== undefined && val !== "" ? val : "-"}
+                </td>
+            );
+
+            // Helper to render header cell
+            const HeaderCell = ({ label, colorClass = "bg-gray-50" }) => (
+                <th className={`px-3 py-3 text-center text-xs font-bold text-gray-700 whitespace-nowrap border-r border-gray-200 ${colorClass}`}>
+                    {label}
+                </th>
+            );
+
             return (
                 <div className="min-h-screen flex items-center justify-center py-8 px-4">
                     {view === 'login' ? (
@@ -193,7 +212,7 @@
                             </div>
 
                             <form onSubmit={handleLogin} className="space-y-6">
-                                {/* API URL Setting (Optional/Hidden in production) */}
+                                {/* API URL Input for demo */}
                                 {(!DEFAULT_API_URL && !isDemo) && (
                                     <div className="bg-yellow-50 p-3 rounded border border-yellow-200 text-xs text-yellow-800 mb-4">
                                         <label className="block font-bold mb-1">系統設定 (首次使用請填寫):</label>
@@ -239,7 +258,7 @@
                             </form>
                         </div>
                     ) : (
-                        <div className="w-full max-w-5xl animate-fade-in space-y-6">
+                        <div className="w-full max-w-[95%] animate-fade-in space-y-6">
                             {/* Header Bar */}
                             <div className="glass-card rounded-xl p-4 flex flex-col md:flex-row justify-between items-center shadow-sm">
                                 <div className="flex items-center space-x-4 mb-4 md:mb-0 w-full md:w-auto">
@@ -272,7 +291,7 @@
                                 </div>
                             </div>
 
-                            {/* Main Score Card */}
+                            {/* Main Content */}
                             {loading ? (
                                 <div className="text-center py-20">
                                     <i className="ph ph-spinner animate-spin text-4xl text-blue-500"></i>
@@ -280,91 +299,84 @@
                                 </div>
                             ) : (
                                 <>
-                                    {/* Student Score Table */}
+                                    {/* Spreadsheet Style Table */}
                                     <div className="glass-card rounded-2xl shadow-lg overflow-hidden">
                                         <div className="bg-blue-600 px-6 py-4">
                                             <h2 className="text-white font-bold flex items-center">
-                                                <i className="ph ph-table mr-2"></i> 個人成績一覽
+                                                <i className="ph ph-table mr-2"></i> 成績列表
                                             </h2>
                                         </div>
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm text-left text-gray-600">
-                                                <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
-                                                    <tr>
-                                                        <th className="px-4 py-3 text-center">科目</th>
-                                                        {['國語', '英語', '數學', '社會', '自然'].map(s => (
-                                                            <th key={s} className="px-4 py-3 text-center bg-blue-50/50">{s}</th>
-                                                        ))}
-                                                        <th className="px-4 py-3 text-center bg-yellow-50">統計</th>
+                                        <div className="overflow-x-auto scrollbar-hide">
+                                            <table className="min-w-full divide-y divide-gray-200">
+                                                <thead>
+                                                    <tr className="bg-gray-50">
+                                                        <HeaderCell label="座號" colorClass="bg-gray-100" />
+                                                        <HeaderCell label="姓名" colorClass="bg-gray-100" />
+                                                        <HeaderCell label="國語定期" colorClass="bg-blue-50" />
+                                                        <HeaderCell label="國語平時" />
+                                                        <HeaderCell label="英語定期" colorClass="bg-blue-50" />
+                                                        <HeaderCell label="英語平時" />
+                                                        <HeaderCell label="數學定期" colorClass="bg-blue-50" />
+                                                        <HeaderCell label="數學平時" />
+                                                        <HeaderCell label="社會定期" colorClass="bg-blue-50" />
+                                                        <HeaderCell label="社會平時" />
+                                                        <HeaderCell label="自然定期" colorClass="bg-blue-50" />
+                                                        <HeaderCell label="自然平時" />
+                                                        <HeaderCell label="平均" colorClass="bg-yellow-50 text-blue-600" />
+                                                        <HeaderCell label="總分" colorClass="bg-yellow-50" />
                                                     </tr>
                                                 </thead>
-                                                <tbody>
-                                                    <tr className="border-b hover:bg-gray-50">
-                                                        <td className="px-4 py-4 font-bold text-gray-900 text-center bg-gray-50">定期</td>
-                                                        {['國語', '英語', '數學', '社會', '自然'].map(s => (
-                                                            <td key={s} className="px-4 py-4 text-center font-medium text-blue-600">
-                                                                {studentData?.scores[s]?.["定期"] || "-"}
-                                                            </td>
-                                                        ))}
-                                                        <td className="px-4 py-4 text-center font-bold text-gray-800 bg-yellow-50/30" rowSpan="2">
-                                                            <div className="space-y-1">
-                                                                <div className="flex justify-between text-xs"><span>總分:</span> <span>{studentData?.total}</span></div>
-                                                                <div className="flex justify-between text-xs"><span>平均:</span> <span className="text-blue-600">{studentData?.avg}</span></div>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                    <tr className="border-b hover:bg-gray-50">
-                                                        <td className="px-4 py-4 font-bold text-gray-900 text-center bg-gray-50">平時</td>
-                                                        {['國語', '英語', '數學', '社會', '自然'].map(s => (
-                                                            <td key={s} className="px-4 py-4 text-center text-gray-500">
-                                                                {studentData?.scores[s]?.["平時"] || "-"}
-                                                            </td>
-                                                        ))}
-                                                    </tr>
-                                                    {/* Class Stats Row */}
-                                                    <tr className="bg-gray-50 border-t-2 border-gray-200">
-                                                        <td className="px-4 py-3 font-bold text-gray-500 text-center text-xs">班平均</td>
-                                                        {['國語', '英語', '數學', '社會', '自然'].map(s => (
-                                                            <td key={s} className="px-4 py-3 text-center text-xs text-gray-500">
-                                                                {statsData?.[s]?.avg || "-"}
-                                                            </td>
-                                                        ))}
-                                                        <td className="bg-white"></td>
-                                                    </tr>
-                                                    <tr className="bg-gray-50">
-                                                        <td className="px-4 py-3 font-bold text-purple-600 text-center text-xs">高標</td>
-                                                        {['國語', '英語', '數學', '社會', '自然'].map(s => (
-                                                            <td key={s} className="px-4 py-3 text-center text-xs text-purple-600 font-bold">
-                                                                {statsData?.[s]?.highScore || "-"}
-                                                            </td>
-                                                        ))}
-                                                        <td className="bg-white"></td>
+                                                <tbody className="bg-white divide-y divide-gray-200">
+                                                    <tr>
+                                                        <td className="px-3 py-4 text-center font-bold text-gray-800 bg-gray-50 border-r">{studentData?.seat}</td>
+                                                        <td className="px-3 py-4 text-center font-bold text-gray-800 bg-gray-50 border-r sticky left-0">{studentData?.name}</td>
+                                                        
+                                                        {/* Subjects */}
+                                                        <ScoreCell val={studentData?.scores['國語']?.['定期']} />
+                                                        <ScoreCell val={studentData?.scores['國語']?.['平時']} />
+                                                        <ScoreCell val={studentData?.scores['英語']?.['定期']} />
+                                                        <ScoreCell val={studentData?.scores['英語']?.['平時']} />
+                                                        <ScoreCell val={studentData?.scores['數學']?.['定期']} />
+                                                        <ScoreCell val={studentData?.scores['數學']?.['平時']} />
+                                                        <ScoreCell val={studentData?.scores['社會']?.['定期']} />
+                                                        <ScoreCell val={studentData?.scores['社會']?.['平時']} />
+                                                        <ScoreCell val={studentData?.scores['自然']?.['定期']} />
+                                                        <ScoreCell val={studentData?.scores['自然']?.['平時']} />
+                                                        
+                                                        {/* Totals */}
+                                                        <td className="px-3 py-4 text-center font-bold text-blue-600 bg-yellow-50 border-r">{studentData?.avg}</td>
+                                                        <td className="px-3 py-4 text-center font-bold text-gray-800 bg-yellow-50">{studentData?.total}</td>
                                                     </tr>
                                                 </tbody>
                                             </table>
                                         </div>
                                     </div>
 
-                                    {/* Distribution Cards */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {/* Distribution Analysis */}
+                                    <h3 className="text-xl font-bold text-gray-800 mt-8 mb-4 pl-2 border-l-4 border-blue-500">班級成績組距分析 (定期)</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                                         {['國語', '英語', '數學', '社會', '自然'].map(subject => {
                                             const dist = statsData?.[subject]?.dist;
                                             if (!dist) return null;
                                             
                                             return (
-                                                <div key={subject} className="glass-card rounded-xl p-5 shadow-sm border-t-4 border-blue-500">
-                                                    <h3 className="font-bold text-gray-800 mb-4 flex justify-between">
-                                                        <span>{subject} 組距分析</span>
-                                                        <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded">定期</span>
-                                                    </h3>
-                                                    <div className="space-y-3">
+                                                <div key={subject} className="glass-card rounded-xl p-4 shadow-sm border-t-4 border-blue-500">
+                                                    <div className="flex justify-between items-center mb-3">
+                                                        <h4 className="font-bold text-lg text-gray-800">{subject}</h4>
+                                                        <div className="text-xs space-y-1 text-right">
+                                                            <div className="text-gray-500">平均: <span className="font-bold text-blue-600">{statsData[subject].avg}</span></div>
+                                                            <div className="text-gray-500">高標: <span className="font-bold text-purple-600">{statsData[subject].highScore}</span></div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-2">
                                                         {[
-                                                            { label: '100分', key: '100', color: 'bg-green-500' },
-                                                            { label: '90-99分', key: '90-99', color: 'bg-emerald-400' },
-                                                            { label: '80-89分', key: '80-89', color: 'bg-blue-400' },
-                                                            { label: '70-79分', key: '70-79', color: 'bg-indigo-400' },
-                                                            { label: '60-69分', key: '60-69', color: 'bg-yellow-400' },
-                                                            { label: '60分以下', key: 'under60', color: 'bg-red-400' },
+                                                            { label: '100', key: '100', color: 'bg-green-500' },
+                                                            { label: '90-99', key: '90-99', color: 'bg-emerald-400' },
+                                                            { label: '80-89', key: '80-89', color: 'bg-blue-400' },
+                                                            { label: '70-79', key: '70-79', color: 'bg-indigo-400' },
+                                                            { label: '60-69', key: '60-69', color: 'bg-yellow-400' },
+                                                            { label: '<60', key: 'under60', color: 'bg-red-400' },
                                                         ].map((range) => {
                                                             const count = dist[range.key];
                                                             const total = statsData[subject].count || 1;
@@ -372,14 +384,14 @@
                                                             
                                                             return (
                                                                 <div key={range.key} className="flex items-center text-xs">
-                                                                    <div className="w-16 font-medium text-gray-600">{range.label}</div>
-                                                                    <div className="flex-1 mx-2 bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                                                                    <div className="w-10 font-medium text-gray-500">{range.label}</div>
+                                                                    <div className="flex-1 mx-1.5 bg-gray-100 rounded-full h-1.5 overflow-hidden">
                                                                         <div 
-                                                                            className={`h-2.5 rounded-full ${range.color}`} 
+                                                                            className={`h-1.5 rounded-full ${range.color}`} 
                                                                             style={{ width: `${percentage}%` }}
                                                                         ></div>
                                                                     </div>
-                                                                    <div className="w-8 text-right font-bold text-gray-700">{count}人</div>
+                                                                    <div className="w-6 text-right font-bold text-gray-700">{count}</div>
                                                                 </div>
                                                             );
                                                         })}
