@@ -137,30 +137,30 @@
             });
     }
 
-    function renderStudentTable(student) {
+  //  function renderStudentTable(student) {
         // 依據您提供的欄位順序建立表格
         // 為了美觀，我們將 "身分證" 隱藏或只顯示部分，這裡假設全部欄位都顯示
-        let html = '<table><thead><tr>';
-        const keys = Object.keys(student);
+    //    let html = '<table><thead><tr>';
+     //   const keys = Object.keys(student);
         
         // 建立標題列
-        keys.forEach(key => {
+     //   keys.forEach(key => {
              // 不顯示身分證字號，保護隱私
-            if(key !== "身分證字號") {
-                html += `<th>${key}</th>`;
-            }
-        });
-        html += '</tr></thead><tbody><tr>';
+       //     if(key !== "身分證字號") {
+        //        html += `<th>${key}</th>`;
+        //    }
+     //   });
+     //   html += '</tr></thead><tbody><tr>';
         
         // 建立資料列
-        keys.forEach(key => {
-            if(key !== "身分證字號") {
-                html += `<td>${student[key]}</td>`;
-            }
-        });
-        html += '</tr></tbody></table>';
-        document.getElementById('student-info-table').innerHTML = html;
-    }
+     //   keys.forEach(key => {
+       //     if(key !== "身分證字號") {
+       //         html += `<td>${student[key]}</td>`;
+      //      }
+      //  });
+     //   html += '</tr></tbody></table>';
+     //   document.getElementById('student-info-table').innerHTML = html;
+   // }
 
     function renderStats(stats) {
         let html = '';
