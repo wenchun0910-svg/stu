@@ -137,21 +137,28 @@
             });
     }
 
-   function renderStudentTable(student) {
+function renderStudentTable(student) {
         let html = '<table><thead><tr>';
         const keys = Object.keys(student);
         
-        // 建立標題列 (後端已經濾掉身分證了，這裡直接顯示即可)
+        // 1. 建立標題列 (Header)
         keys.forEach(key => {
-            html += `<th>${key}</th>`;
+            // 強制過濾：只有當標題「不是」身分證字號時，才建立格子
+            if (key !== "身分證字號") {
+                html += `<th>${key}</th>`;
+            }
         });
         html += '</tr></thead><tbody><tr>';
         
-        // 建立資料列
+        // 2. 建立資料列 (Body)
         keys.forEach(key => {
-            html += `<td>${student[key]}</td>`;
+            // 強制過濾：只有當標題「不是」身分證字號時，才填入資料
+            if (key !== "身分證字號") {
+                html += `<td>${student[key]}</td>`;
+            }
         });
         html += '</tr></tbody></table>';
+        
         document.getElementById('student-info-table').innerHTML = html;
     }
 
